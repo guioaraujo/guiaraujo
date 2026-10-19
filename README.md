@@ -1,112 +1,129 @@
-# Gui Araujo
+# Despensa
 
-Sistema de gestão para produção audiovisual: projetos, documentos em blocos,
-CRM, propostas, financeiro e agenda sincronizada com o Google Calendar.
+App de planejamento de refeições por orçamento, no estilo dos apps de
+"plano alimentar da semana": você diz onde compra, para quantas pessoas
+cozinha, quanto quer gastar, do que está com vontade, restrições, alergias,
+proteínas preferidas e o que tem na cozinha. O app monta a semana, estima o
+custo de cada refeição, gera a lista de compras por corredor e guia o preparo
+passo a passo.
 
-Funciona em desktop e como PWA instalável no iPhone/iPad.
+Funciona como PWA instalável no iPhone (Safari → Compartilhar → Adicionar à
+Tela de Início) e salva tudo no próprio aparelho: não precisa de login nem de
+banco de dados.
 
----
+## O que tem
+
+- **Onboarding em 9 passos**: mercado, pessoas, orçamento (slider), refeições
+  a planejar, vontades (até 3), restrições, alergias, proteínas e a cozinha
+  ilustrada com os aparelhos clicáveis.
+- **Plano semanal**: 7 dias × refeições escolhidas, custo estimado por
+  refeição e total contra o orçamento. Fixe as que gostou e gere o resto de
+  novo. Receitas respeitam restrições, alergias, aparelhos disponíveis e
+  proteína principal; o planejador troca pratos até caber no orçamento.
+- **Lista de compras**: quantidades somadas de todas as receitas, agrupadas
+  por corredor ou por receita, com checkbox, progresso, custo por item e
+  compartilhamento (menu nativo do iOS).
+- **Receita**: capa, macros por porção, porções ajustáveis (reescala
+  ingredientes e custo), ingredientes, preparo, favoritos e histórico.
+- **Modo cozinhar**: um passo por tela, ingredientes destacados, timer nos
+  passos com tempo, tela que não apaga (Wake Lock).
+- **Catálogo**: 50 receitas brasileiras do dia a dia (café, almoço e jantar)
+  com ~110 ingredientes e preços de referência por kg/L/un, ajustados por um
+  fator por rede (Atacadão, Assaí, Carrefour, Extra, BH, Pão de Açúcar, Dia,
+  Guanabara, Mundial).
+- **IA opcional**: com `ANTHROPIC_API_KEY` no servidor aparece o botão ✨ no
+  plano, que cria receitas inéditas para os dias não fixados usando a API da
+  Anthropic com saída estruturada. Sem a chave, tudo funciona com o catálogo.
+- **PWA**: manifest, ícones, service worker (Serwist) com fallback offline.
 
 ## Stack
 
-| Camada | Escolha | Por quê |
-|---|---|---|
-| Framework | Next.js 16 (App Router) + TypeScript | Server Actions e streaming |
-| Estilo | Tailwind CSS v4 + shadcn/ui | dark mode nativo, tokens em OKLCH |
-| Animação | Framer Motion | transições de rota e indicador de aba |
-| Banco / Auth | Supabase (Postgres + RLS) | segurança na linha, não no app |
-| Editor | Tiptap 3 | blocos com slash commands |
-| Kanban | @hello-pangea/dnd | drag-and-drop mantido, compatível com React 19 |
-| PWA | @serwist/next | sucessor do next-pwa; funciona com Turbopack |
-| Host | Netlify | `netlify.toml` na raiz |
-
----
+| Camada | Escolha |
+|---|---|
+| Framework | Next.js 16 (App Router) + TypeScript |
+| Estilo | Tailwind CSS v4 |
+| Ícones | lucide-react |
+| Toasts | sonner |
+| PWA | @serwist/next (configurator mode, build separado) |
+| IA | @anthropic-ai/sdk (`/api/plan`) |
+| Dados | `localStorage` do aparelho |
+| Host | Netlify (`netlify.toml` na raiz) |
 
 ## Rodando local
 
 ```bash
 npm install
-cp .env.example .env.local   # preencha os valores
-npm run dev
+npm run dev        # http://localhost:3000
 ```
+
+Build de produção (gera também o `public/sw.js`):
+
+```bash
+npm run build
+npm run start
+```
+
+Para testar a instalação no iPhone é preciso HTTPS (o service worker só
+registra em origem segura). Em desenvolvimento o SW fica desligado.
 
 ### Scripts
 
 | Comando | O que faz |
 |---|---|
 | `npm run dev` | servidor de desenvolvimento |
-| `npm run build` | `next build` + gera o service worker |
+| `npm run build` | `next build` + `serwist build` |
 | `npm run start` | servidor de produção |
 | `npm run typecheck` | TypeScript do app e do service worker |
 | `npm run lint` | ESLint |
-| `npm run icons` | regera os ícones do PWA a partir do vetor |
-| `npm run db:check` | confere se o schema foi aplicado no Supabase |
-| `npm run google:check` | confere a integração com o Google Calendar |
-
----
-
-## Banco de dados
-
-Rode os arquivos **em ordem** no SQL Editor do Supabase:
-
-1. `supabase/schema.sql` — tabelas, RLS, view de DRE, funções
-2. `supabase/migrations/002_google_calendar.sql` — tokens do Google e eventos
-3. `supabase/migrations/003_event_kinds.sql` — tipos de evento abertos
-4. `supabase/migrations/004_ai_assistant.sql` — assistente de IA (chave da
-   Anthropic e histórico de conversa)
-
-Confira com `npm run db:check` — ele não cobre a migration 004, então valide o
-assistente pela própria tela de configurações.
-
-### Modelo de segurança
-
-- RLS ligado em todas as tabelas; cada linha pertence a um `owner_id`.
-- `google_credentials` tem RLS **sem nenhuma policy** e os privilégios revogados
-  de `anon`/`authenticated`: um refresh token dá acesso permanente à agenda e
-  nunca pode ser alcançável pelo navegador. Só o servidor lê, com a service role key.
-- Proposta pública não expõe a tabela: a função `get_public_proposal(token)`
-  (SECURITY DEFINER) devolve uma proposta por vez, e só se publicada.
-
----
+| `npm run icons` | regera os ícones do PWA a partir de `public/icon.svg` |
 
 ## Variáveis de ambiente
 
-Cadastre no painel da Netlify (**Site configuration → Environment variables**)
-e em `.env.local` para rodar local.
-
-| Variável | Onde achar | Obrigatória |
+| Variável | Obrigatória | Para quê |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | URL do site, sem barra final | sim |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API | sim |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → API Keys → anon/publishable | sim |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → API Keys → service_role/secret | sim (Calendar) |
-| `GOOGLE_CLIENT_ID` | Google Cloud → Credentials | sim (Calendar) |
-| `GOOGLE_CLIENT_SECRET` | Google Cloud → Credentials | sim (Calendar) |
+| `ANTHROPIC_API_KEY` | não | habilita a geração de receitas com IA em `/api/plan` |
 
-As três últimas são **secretas**: nunca prefixe com `NEXT_PUBLIC_`, senão vão
-parar no bundle do navegador.
-
-### Google Cloud
-
-1. Ative a **Google Calendar API**.
-2. Credencial OAuth 2.0 tipo **Web application**.
-3. Authorized redirect URI: `https://<projeto>.supabase.co/auth/v1/callback`
-4. Publique o app (**Publishing status → In production**). Em modo *Testing* o
-   Google expira o refresh token a cada 7 dias, e a agenda desconectaria toda semana.
-
-### Supabase
-
-Authentication → Providers → **Google**: ativar e colar client id + secret.
-Em URL Configuration, incluir o domínio de produção nas **Redirect URLs**.
-
----
+Cadastre na Netlify em **Site configuration → Environment variables**. Nunca
+prefixe com `NEXT_PUBLIC_`.
 
 ## Deploy na Netlify
 
-O `netlify.toml` já define build, plugin do Next, headers e o tratamento de
-deploy previews. Depois de conectar o repositório:
+1. Conecte o repositório; o `netlify.toml` já define build, plugin do Next e
+   headers (inclusive `Cache-Control` do `sw.js`).
+2. Opcional: cadastre `ANTHROPIC_API_KEY`.
+3. Deploy. Abra no Safari do iPhone e adicione à Tela de Início.
 
-1. Cadastre as variáveis de ambiente acima.
-2. Deploy.
-3. Ajuste `NEXT_PUBLIC_SITE_URL` para o domínio final.
-4. Adicione esse domínio nas Redirect URLs do Supabase.
+## Estrutura
+
+```
+src/
+  app/
+    onboarding/         fluxo de perguntas
+    (app)/              telas com barra de abas: plano, lista, receitas, perfil
+    receita/[id]/       detalhe + modo cozinhar
+    api/plan/           geração com IA (opcional)
+    offline/            fallback do service worker
+  components/           UI (botões, grid de opções, cena da cozinha, cards)
+  data/                 receitas, ingredientes e preços, mercados, opções
+  lib/                  planejador, preços, lista de compras, store persistido
+  service-worker/       fonte do SW compilado pelo Serwist
+public/                 manifest, ícones
+scripts/                gerador de ícones
+```
+
+## Como o planejador decide
+
+1. Filtra o catálogo pelos filtros rígidos: restrições, alergias, aparelhos
+   disponíveis e proteína principal (quando há preferência).
+2. Pontua cada receita pelas vontades (rápido, baixa caloria, família,
+   delivery caseiro, intestino, proteico, conforto, econômico).
+3. Divide o orçamento entre os slots da semana (café pesa menos que almoço e
+   jantar) e escolhe, com um pouco de aleatoriedade, entre as melhores
+   receitas que cabem na meta de cada slot, evitando repetir a proteína do
+   dia anterior.
+4. Se o total passar do orçamento, troca os pratos mais caros por opções
+   mais baratas, primeiro sem repetir receitas, depois permitindo até duas
+   repetições.
+
+Os preços são estimativas médias de varejo para orçar a semana, não a
+etiqueta do mercado.
