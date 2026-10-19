@@ -6,7 +6,7 @@ import type {
   Recipe,
   RestrictionId,
 } from "./types";
-import { recipeCost } from "./pricing";
+import { recipeCost, type PriceContext } from "./pricing";
 import { rng, shuffle, uid } from "./utils";
 
 const MEAL_ORDER: MealType[] = ["cafe", "almoco", "jantar"];
@@ -65,7 +65,7 @@ export interface PlanOptions {
   weekStart: Date;
   previous?: Plan | null;
   seed?: number;
-  marketFactor: number;
+  price: PriceContext;
 }
 
 export interface PlanResult {
@@ -84,13 +84,12 @@ export function generatePlan(
   const pool = filterRecipes(recipes, profile);
   const meals = MEAL_ORDER.filter((m) => profile.meals.includes(m));
   const people = Math.max(1, profile.people);
-  const factor = opts.marketFactor;
 
   const costOf = new Map<string, number>();
   const cost = (r: Recipe) => {
     let c = costOf.get(r.id);
     if (c === undefined) {
-      c = recipeCost(r, people, factor);
+      c = recipeCost(r, people, opts.price);
       costOf.set(r.id, c);
     }
     return c;

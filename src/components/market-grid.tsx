@@ -1,6 +1,6 @@
 "use client";
 
-import { MARKETS } from "@/data/markets";
+import { MARKETS, marketsNear } from "@/data/markets";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
@@ -17,10 +17,11 @@ export function MarketLogo({ id, className }: { id: string; className?: string }
   );
 }
 
-export function MarketGrid({ selected, onSelect }: { selected: string | null; onSelect: (id: string) => void }) {
+export function MarketGrid({ selected, onSelect, state }: { selected: string | null; onSelect: (id: string) => void; state?: string }) {
+  const list = marketsNear(state);
   return (
     <div className="grid grid-cols-3 gap-3">
-      {MARKETS.map((m) => {
+      {list.map(({ market: m, near }) => {
         const on = selected === m.id;
         return (
           <button
@@ -40,6 +41,11 @@ export function MarketGrid({ selected, onSelect }: { selected: string | null; on
             )}
             <MarketLogo id={m.id} className="h-12 w-full" />
             <span className="text-[11px] leading-tight text-muted">{m.name}</span>
+            {state && near && m.id !== "outro" && (
+              <span className="absolute left-2 top-2 rounded-full bg-leaf-soft px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-leaf">
+                na sua região
+              </span>
+            )}
           </button>
         );
       })}

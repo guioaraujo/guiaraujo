@@ -133,8 +133,20 @@ export interface Recipe {
   source?: "catalog" | "ai";
 }
 
+export interface Location {
+  /** sigla da UF, ex.: "SP" */
+  state: string;
+  city?: string;
+  lat?: number;
+  lon?: number;
+}
+
+/** mercado → ingrediente → preço por kg, L ou un informado pelo usuário */
+export type PriceOverrides = Record<string, Record<string, number>>;
+
 export interface Profile {
   marketId: string;
+  location?: Location;
   people: number;
   budget: number;
   meals: MealType[];

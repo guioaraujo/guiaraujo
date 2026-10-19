@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import type { Plan, Profile, Recipe } from "./types";
+import type { Plan, PriceOverrides, Profile, Recipe } from "./types";
 import { RECIPES } from "@/data/recipes";
+import { getMarket } from "@/data/markets";
+import { priceContext } from "./pricing";
 
 export interface State {
   hydrated: boolean;
@@ -15,6 +17,8 @@ export interface State {
   favorites: string[];
   /** id da receita → data ISO da última vez que foi feita */
   cooked: Record<string, string>;
+  /** preços informados pelo usuário, por mercado */
+  priceOverrides: PriceOverrides;
 }
 
 const KEY = "despensa:v1";
@@ -27,6 +31,7 @@ const initial: State = {
   checked: {},
   favorites: [],
   cooked: {},
+  priceOverrides: {},
 };
 
 let state: State = initial;
@@ -130,6 +135,21 @@ export const actions = {
   markCooked(id: string) {
     set((s) => ({ cooked: { ...s.cooked, [id]: new Date().toISOString() } }));
   },
+  setPriceOverride(marketId: string, ingredientId: string, pricePer: number | null) {
+    set((s) => {
+      const forMarket = { ...(s.priceOverrides[marketId] ?? {}) };
+      if (pricePer === null) delete forMarket[ingredientId];
+      else forMarket[ingredientId] = pricePer;
+      return { priceOverrides: { ...s.priceOverrides, [marketId]: forMarket } };
+    });
+  },
+  clearPriceOverrides(marketId: string) {
+    set((s) => {
+      const next = { ...s.priceOverrides };
+      delete next[marketId];
+      return { priceOverrides: next };
+    });
+  },
   addCustomRecipes(recipes: Recipe[]) {
     set((s) => {
       const ids = new Set(recipes.map((r) => r.id));
@@ -152,6 +172,13 @@ export function findRecipe(id: string, custom: Recipe[]) {
 export function useRecipes() {
   const custom = useStore((s) => s.customRecipes);
   return useMemo(() => allRecipes(custom), [custom]);
+}
+
+/** Contexto de preço do mercado do perfil, com os ajustes manuais. */
+export function usePriceContext() {
+  const marketId = useStore((s) => s.profile?.marketId);
+  const overrides = useStore((s) => s.priceOverrides);
+  return useMemo(() => priceContext(getMarket(marketId).factor, overrides, marketId), [marketId, overrides]);
 }
 
 export function useRecipe(id: string) {

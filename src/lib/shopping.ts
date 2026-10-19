@@ -1,5 +1,5 @@
 import type { Aisle, Ingredient, Plan, Recipe } from "./types";
-import { resolveIngredient, scaleFactor, unitCost } from "./pricing";
+import { resolveIngredient, scaleFactor, unitCost, type PriceContext } from "./pricing";
 
 export interface ShoppingItem {
   key: string;
@@ -26,7 +26,7 @@ export const PANTRY_STAPLES = new Set(["sal", "oleo", "acucar", "pimenta-do-rein
 export function buildShoppingList(
   plan: Plan,
   getRecipe: (id: string) => Recipe | undefined,
-  factor: number,
+  ctx: PriceContext,
 ): ShoppingItem[] {
   const map = new Map<string, ShoppingItem>();
   for (const slot of plan.slots) {
@@ -39,7 +39,7 @@ export function buildShoppingList(
       const existing = map.get(ing.id);
       if (existing) {
         existing.qty += qty;
-        existing.cost += unitCost(ing, qty, factor);
+        existing.cost += unitCost(ing, qty, ctx);
         if (!existing.recipes.some((r) => r.id === recipe.id)) {
           existing.recipes.push({ id: recipe.id, name: recipe.name });
         }
@@ -48,7 +48,7 @@ export function buildShoppingList(
           key: ing.id,
           ingredient: ing,
           qty,
-          cost: unitCost(ing, qty, factor),
+          cost: unitCost(ing, qty, ctx),
           recipes: [{ id: recipe.id, name: recipe.name }],
         });
       }

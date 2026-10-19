@@ -4,10 +4,9 @@ import { RecipeCover } from "@/components/recipe-cover";
 import { StepText } from "@/components/step-text";
 import { Stepper } from "@/components/stepper";
 import { BackButton, BottomBar, Button, Chip, IconButton } from "@/components/ui";
-import { getMarket } from "@/data/markets";
 import { CRAVING_LABEL, MEAL_LABEL } from "@/data/options";
 import { recipeCost, resolveIngredient, scaleFactor } from "@/lib/pricing";
-import { actions, useRecipe, useStore } from "@/lib/store";
+import { actions, usePriceContext, useRecipe, useStore } from "@/lib/store";
 import { brl, formatQty } from "@/lib/utils";
 import { ChefHat, Clock, Heart, ShoppingBasket, Users } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +23,7 @@ export default function RecipePage() {
   const favorite = useStore((s) => s.favorites.includes(id));
   const cookedAt = useStore((s) => s.cooked[id]);
   const [servings, setServings] = useState<number | null>(null);
+  const price = usePriceContext();
 
   if (!hydrated) return null;
   if (!recipe) {
@@ -38,9 +38,8 @@ export default function RecipePage() {
   }
 
   const n = servings ?? profile?.people ?? recipe.servings;
-  const factor = getMarket(profile?.marketId).factor;
   const scale = scaleFactor(recipe, n);
-  const cost = recipeCost(recipe, n, factor);
+  const cost = recipeCost(recipe, n, price);
 
   return (
     <main className="pb-36">

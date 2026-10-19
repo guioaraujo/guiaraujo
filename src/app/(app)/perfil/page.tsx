@@ -7,6 +7,7 @@ import { ALLERGENS, APPLIANCES, CRAVINGS, MEALS, PROTEINS, RESTRICTIONS } from "
 import { aiAvailable } from "@/lib/ai-client";
 import { actions, useStore } from "@/lib/store";
 import { brl } from "@/lib/utils";
+import { STATE_NAMES } from "@/lib/geo";
 import { Share, SquarePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -33,6 +34,7 @@ export default function ProfilePage() {
   const profile = useStore((s) => s.profile)!;
   const cooked = useStore((s) => s.cooked);
   const customCount = useStore((s) => s.customRecipes.length);
+  const overrideCount = useStore((s) => Object.keys(s.priceOverrides[s.profile?.marketId ?? ""] ?? {}).length);
   const standalone = useStandalone();
   const [ai, setAi] = useState<boolean | null>(null);
   useEffect(() => {
@@ -54,6 +56,12 @@ export default function ProfilePage() {
           <p className="text-[13px] text-muted">
             {profile.people} {profile.people === 1 ? "pessoa" : "pessoas"} · {brl(profile.budget, { cents: false })}/semana
           </p>
+          {profile.location && (
+            <p className="text-[12px] text-muted">
+              📍 {profile.location.city ? `${profile.location.city}, ` : ""}
+              {STATE_NAMES[profile.location.state] ?? profile.location.state}
+            </p>
+          )}
         </div>
       </Card>
 
@@ -82,6 +90,26 @@ export default function ProfilePage() {
           </ol>
         </Card>
       )}
+
+      <Card className="mt-4">
+        <p className="font-semibold">Preços do {market.short}</p>
+        <p className="mt-1 text-[13px] text-muted">
+          {overrideCount === 0
+            ? "Todos os preços são estimativas do app. Na lista de compras, toque no preço de um item para informar o valor da etiqueta."
+            : `${overrideCount} ${overrideCount === 1 ? "item com preço informado por você" : "itens com preço informado por você"}. Eles valem em todas as receitas desse mercado.`}
+        </p>
+        {overrideCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Voltar todos os itens para o preço estimado?")) actions.clearPriceOverrides(market.id);
+            }}
+            className="mt-3 text-[13px] font-semibold text-danger"
+          >
+            Limpar preços informados
+          </button>
+        )}
+      </Card>
 
       <Card className="mt-4">
         <p className="text-[13px] text-muted">Receitas feitas</p>

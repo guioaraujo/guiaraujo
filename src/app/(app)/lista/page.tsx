@@ -4,7 +4,10 @@ import { RecipeCover } from "@/components/recipe-cover";
 import { Title } from "@/components/ui";
 import { getMarket } from "@/data/markets";
 import { buildShoppingList, groupByAisle, groupByRecipe, PANTRY_STAPLES, type ShoppingItem } from "@/lib/shopping";
-import { actions, findRecipe, useStore } from "@/lib/store";
+import { actions, findRecipe, usePriceContext, useStore } from "@/lib/store";
+import { PriceEditor } from "@/components/price-editor";
+import { hasOverride } from "@/lib/pricing";
+import type { Ingredient } from "@/lib/types";
 import { addDays, brl, cn, DAY_SHORT, formatQty, shortDate } from "@/lib/utils";
 import { CalendarDays, Check, Share } from "lucide-react";
 import Link from "next/link";
@@ -20,8 +23,10 @@ export default function ListPage() {
   const [showMeals, setShowMeals] = useState(true);
 
   const market = getMarket(profile.marketId);
+  const price = usePriceContext();
+  const [editing, setEditing] = useState<Ingredient | null>(null);
   const getRecipe = (id: string) => findRecipe(id, custom);
-  const items = useMemo(() => (plan ? buildShoppingList(plan, getRecipe, market.factor) : []), [plan, custom, market.factor]); // eslint-disable-line react-hooks/exhaustive-deps
+  const items = useMemo(() => (plan ? buildShoppingList(plan, getRecipe, price) : []), [plan, custom, price]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!plan) {
     return (
@@ -138,12 +143,21 @@ export default function ListPage() {
               <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">{g.title}</h3>
               <ul className="divide-y divide-ink/5 rounded-3xl border border-ink/6 bg-white px-3">
                 {g.items.map((item) => (
-                  <ListRow key={g.key + item.key} item={item} done={!!checked[item.key]} onToggle={() => actions.toggleChecked(item.key)} />
+                  <ListRow
+                    key={g.key + item.key}
+                    item={item}
+                    done={!!checked[item.key]}
+                    custom={hasOverride(item.key, price)}
+                    onToggle={() => actions.toggleChecked(item.key)}
+                    onEditPrice={() => setEditing(item.ingredient)}
+                  />
                 ))}
               </ul>
             </div>
           ))}
         </div>
+
+        <p className="mt-4 text-center text-[12px] text-muted">Toque no preço de um item para informar o valor da etiqueta.</p>
 
         {bought > 0 && (
           <button type="button" onClick={() => actions.clearChecked()} className="mt-6 w-full text-center text-[13px] font-semibold text-muted">
@@ -151,15 +165,46 @@ export default function ListPage() {
           </button>
         )}
       </section>
+
+      {editing && (
+        <PriceEditor
+          ingredient={editing}
+          marketName={market.name}
+          estimated={editing.pricePer * market.factor}
+          current={price.overrides?.[editing.id]}
+          onSave={(v) => {
+            actions.setPriceOverride(market.id, editing.id, v);
+            setEditing(null);
+            toast.success(`Preço de ${editing.name} atualizado`);
+          }}
+          onReset={() => {
+            actions.setPriceOverride(market.id, editing.id, null);
+            setEditing(null);
+          }}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </main>
   );
 }
 
-function ListRow({ item, done, onToggle }: { item: ShoppingItem; done: boolean; onToggle: () => void }) {
+function ListRow({
+  item,
+  done,
+  custom,
+  onToggle,
+  onEditPrice,
+}: {
+  item: ShoppingItem;
+  done: boolean;
+  custom: boolean;
+  onToggle: () => void;
+  onEditPrice: () => void;
+}) {
   const staple = PANTRY_STAPLES.has(item.key);
   return (
-    <li>
-      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 py-3 text-left">
+    <li className="flex items-center gap-2 py-3">
+      <button type="button" onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <span className="w-7 text-center text-[20px] leading-none">{item.ingredient.emoji}</span>
         <span className="min-w-0 flex-1">
           <span className={cn("block text-[15px] leading-tight", done && "text-muted line-through")}>{item.ingredient.name}</span>
@@ -169,7 +214,19 @@ function ListRow({ item, done, onToggle }: { item: ShoppingItem; done: boolean; 
             {item.recipes.length > 1 && ` · ${item.recipes.length} receitas`}
           </span>
         </span>
-        <span className="text-[12px] tabular-nums text-muted">{brl(item.cost)}</span>
+      </button>
+      <button
+        type="button"
+        onClick={onEditPrice}
+        aria-label={`Ajustar preço de ${item.ingredient.name}`}
+        className={cn(
+          "rounded-full px-2 py-1 text-[12px] tabular-nums",
+          custom ? "bg-leaf-soft font-semibold text-leaf" : "text-muted underline decoration-dotted underline-offset-4",
+        )}
+      >
+        {brl(item.cost)}
+      </button>
+      <button type="button" onClick={onToggle} aria-label={done ? "Desmarcar" : "Marcar como comprado"} className="p-0.5">
         <span
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded-md border transition",

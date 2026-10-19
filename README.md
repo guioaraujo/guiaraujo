@@ -16,6 +16,8 @@ banco de dados.
 - **Onboarding em 9 passos**: mercado, pessoas, orçamento (slider), refeições
   a planejar, vontades (até 3), restrições, alergias, proteínas e a cozinha
   ilustrada com os aparelhos clicáveis.
+- **Localização**: "Usar minha localização" detecta a UF (e a cidade, quando
+  há internet) e mostra primeiro as redes que existem na sua região.
 - **Plano semanal**: 7 dias × refeições escolhidas, custo estimado por
   refeição e total contra o orçamento. Fixe as que gostou e gere o resto de
   novo. Receitas respeitam restrições, alergias, aparelhos disponíveis e
@@ -23,6 +25,9 @@ banco de dados.
 - **Lista de compras**: quantidades somadas de todas as receitas, agrupadas
   por corredor ou por receita, com checkbox, progresso, custo por item e
   compartilhamento (menu nativo do iOS).
+- **Preço da etiqueta**: toque no preço de um item da lista para informar o
+  valor real naquele mercado. O preço informado passa a valer em todas as
+  receitas e no orçamento da semana, por mercado.
 - **Receita**: capa, macros por porção, porções ajustáveis (reescala
   ingredientes e custo), ingredientes, preparo, favoritos e histórico.
 - **Modo cozinhar**: um passo por tela, ingredientes destacados, timer nos
@@ -125,5 +130,14 @@ scripts/                gerador de ícones
    mais baratas, primeiro sem repetir receitas, depois permitindo até duas
    repetições.
 
-Os preços são estimativas médias de varejo para orçar a semana, não a
-etiqueta do mercado.
+## De onde vêm os preços
+
+Os preços são estimativas médias de varejo por ingrediente (por kg, litro
+ou unidade), multiplicadas por um fator de cada rede. Nenhuma rede tem API
+pública de preços, então o app não consulta a loja em tempo real. Para
+chegar no preço real, informe o valor da etiqueta na lista de compras: ele
+fica salvo por mercado e substitui a estimativa.
+
+A localização serve para sugerir as redes da sua região; a detecção da UF
+funciona offline (UF mais próxima) e a cidade vem do OpenStreetMap quando há
+internet.

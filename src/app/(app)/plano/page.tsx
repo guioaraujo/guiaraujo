@@ -7,7 +7,7 @@ import { aiAvailable, generateWithAi, mergeAiPlan } from "@/lib/ai-client";
 import { generatePlan } from "@/lib/planner";
 import { recipeCost } from "@/lib/pricing";
 import { buildShoppingList } from "@/lib/shopping";
-import { actions, findRecipe, useRecipes, useStore } from "@/lib/store";
+import { actions, findRecipe, usePriceContext, useRecipes, useStore } from "@/lib/store";
 import { addDays, brl, DAY_NAMES, nextMonday, shortDate } from "@/lib/utils";
 import { ChevronRight, RefreshCw, ShoppingBasket, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -30,6 +30,7 @@ export default function PlanPage() {
   }, []);
 
   const market = getMarket(profile.marketId);
+  const price = usePriceContext();
   const getRecipe = (id: string) => findRecipe(id, custom);
 
   const rows = useMemo(() => {
@@ -37,14 +38,14 @@ export default function PlanPage() {
     return plan.slots
       .map((slot) => {
         const recipe = getRecipe(slot.recipeId);
-        return recipe ? { slot, recipe, cost: recipeCost(recipe, slot.servings, market.factor) } : null;
+        return recipe ? { slot, recipe, cost: recipeCost(recipe, slot.servings, price) } : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, custom, market.factor]);
+  }, [plan, custom, price]);
 
   const total = rows.reduce((s, r) => s + r.cost, 0);
-  const list = useMemo(() => (plan ? buildShoppingList(plan, getRecipe, market.factor) : []), [plan, custom, market.factor]); // eslint-disable-line react-hooks/exhaustive-deps
+  const list = useMemo(() => (plan ? buildShoppingList(plan, getRecipe, price) : []), [plan, custom, price]); // eslint-disable-line react-hooks/exhaustive-deps
   const bought = list.filter((i) => checked[i.key]).length;
   const over = total - profile.budget;
 
@@ -52,7 +53,7 @@ export default function PlanPage() {
     setBusy("local");
     const result = generatePlan(recipes, profile, {
       weekStart: plan ? new Date(plan.weekStart) : nextMonday(),
-      marketFactor: market.factor,
+      price,
       previous: plan,
     });
     actions.setPlan(result.plan);

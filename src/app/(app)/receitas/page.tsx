@@ -2,11 +2,10 @@
 
 import { RecipeCover } from "@/components/recipe-cover";
 import { Title } from "@/components/ui";
-import { getMarket } from "@/data/markets";
 import { MEALS } from "@/data/options";
 import { isCompatible } from "@/lib/planner";
-import { recipeCostPerServing } from "@/lib/pricing";
-import { useRecipes, useStore } from "@/lib/store";
+import { recipeCostPerServing, type PriceContext } from "@/lib/pricing";
+import { usePriceContext, useRecipes, useStore } from "@/lib/store";
 import type { MealType, Recipe } from "@/lib/types";
 import { brl, cn } from "@/lib/utils";
 import { Clock, Flame, Heart, Search } from "lucide-react";
@@ -20,7 +19,7 @@ export default function RecipesPage() {
   const [q, setQ] = useState("");
   const [meal, setMeal] = useState<MealType | "todas">("todas");
   const [onlyCompatible, setOnlyCompatible] = useState(true);
-  const factor = getMarket(profile.marketId).factor;
+  const factor = usePriceContext();
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -101,7 +100,7 @@ function Section({ title, children }: { title?: string; children: React.ReactNod
   );
 }
 
-function RecipeTile({ recipe, factor, fav }: { recipe: Recipe; factor: number; fav?: boolean }) {
+function RecipeTile({ recipe, factor, fav }: { recipe: Recipe; factor: PriceContext; fav?: boolean }) {
   return (
     <Link href={`/receita/${recipe.id}`} className="overflow-hidden rounded-3xl border border-ink/6 bg-white">
       <div className="relative">

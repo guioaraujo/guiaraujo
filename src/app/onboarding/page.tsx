@@ -7,6 +7,9 @@ import { OptionGrid } from "@/components/option-grid";
 import { Stepper } from "@/components/stepper";
 import { BottomBar, Button, Progress, Subtitle, Title } from "@/components/ui";
 import { getMarket } from "@/data/markets";
+import { priceContext } from "@/lib/pricing";
+import { detectLocation, STATE_NAMES } from "@/lib/geo";
+import { LocateFixed } from "lucide-react";
 import { ALLERGENS, APPLIANCES, CRAVINGS, MEALS, PROTEINS, RESTRICTIONS } from "@/data/options";
 import { generatePlan } from "@/lib/planner";
 import { actions, allRecipes, useStore } from "@/lib/store";
@@ -61,8 +64,10 @@ function OnboardingForm({ editing, initial }: { editing: boolean; initial: Omit<
   const existing = useStore((s) => s.profile);
   const custom = useStore((s) => s.customRecipes);
   const plan = useStore((s) => s.plan);
+  const overrides = useStore((s) => s.priceOverrides);
 
   const [step, setStep] = useState(0);
+  const [locating, setLocating] = useState(false);
   const [p, setP] = useState<Omit<Profile, "createdAt">>(initial);
   const [busy, setBusy] = useState(false);
 
@@ -86,7 +91,7 @@ function OnboardingForm({ editing, initial }: { editing: boolean; initial: Omit<
     actions.setProfile(profile);
     const result = generatePlan(allRecipes(custom), profile, {
       weekStart: nextMonday(),
-      marketFactor: getMarket(profile.marketId).factor,
+      price: priceContext(getMarket(profile.marketId).factor, overrides, profile.marketId),
       previous: editing ? plan : null,
     });
     actions.setPlan(result.plan);
@@ -126,8 +131,36 @@ function OnboardingForm({ editing, initial }: { editing: boolean; initial: Omit<
           <>
             <Title>Onde você faz compras?</Title>
             <Subtitle>Os preços da semana são estimados com base no mercado escolhido.</Subtitle>
-            <div className="mt-6">
-              <MarketGrid selected={p.marketId || null} onSelect={(id) => setP({ ...p, marketId: id })} />
+            <button
+              type="button"
+              disabled={locating}
+              onClick={async () => {
+                setLocating(true);
+                try {
+                  const loc = await detectLocation();
+                  setP((prev) => ({ ...prev, location: loc }));
+                  toast.success(`Mostrando mercados de ${loc.city ? `${loc.city}, ` : ""}${STATE_NAMES[loc.state] ?? loc.state}`);
+                } catch (e) {
+                  toast.error(
+                    e instanceof Error && e.message === "negado"
+                      ? "Permissão de localização negada. Escolha o mercado manualmente."
+                      : "Não foi possível obter sua localização agora.",
+                  );
+                } finally {
+                  setLocating(false);
+                }
+              }}
+              className="mt-4 inline-flex h-10 items-center gap-2 rounded-full border border-ink/15 bg-white px-4 text-[13px] font-semibold text-ink disabled:opacity-50"
+            >
+              <LocateFixed size={15} className={locating ? "animate-pulse" : ""} />
+              {p.location
+                ? `${p.location.city ? `${p.location.city} · ` : ""}${p.location.state}`
+                : locating
+                  ? "Localizando…"
+                  : "Usar minha localização"}
+            </button>
+            <div className="mt-4">
+              <MarketGrid selected={p.marketId || null} onSelect={(id) => setP({ ...p, marketId: id })} state={p.location?.state} />
             </div>
           </>
         )}
