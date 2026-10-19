@@ -1,0 +1,20 @@
+# dependências
+node_modules/
+
+# build
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# service worker gerado no build (npm run build:sw)
+public/sw.js
+public/sw.js.map
+
+# ambiente
+.env*
+!.env.example
+
+# sistema
+.DS_Store
+npm-debug.log*
